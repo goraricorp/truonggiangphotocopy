@@ -1,0 +1,20 @@
+---
+import Layout from "@/layouts/main.astro"
+import ButtonLink from "@/components/custom/button-link"
+import IdentifyApp from "@/components/identify/identify-app"
+---
+
+<Layout title="Photo CCCD">
+  <main class="mx-auto min-h-svh max-w-7xl space-y-5 px-4 py-6 sm:px-6 sm:py-10">
+    <nav aria-label="Điều hướng">
+      <ButtonLink href="/" variant="ghost" size="sm">
+        Về trang chủ
+      </ButtonLink>
+    </nav>
+    <IdentifyApp client:only="react">
+      <p slot="fallback" role="status">
+        Đang tải công cụ xử lý ảnh…
+      </p>
+    </IdentifyApp>
+  </main>
+</Layout>

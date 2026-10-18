@@ -1,0 +1,23 @@
+---
+import Layout from "@/layouts/main.astro"
+import ButtonLink from "@/components/custom/button-link"
+import GeneratorApp from "@/components/generator/generator-app"
+---
+
+<Layout title="Đưa thông tin CCCD vào mẫu">
+  <main class="mx-auto min-h-svh max-w-7xl space-y-5 px-4 py-6 sm:px-6 sm:py-10">
+    <nav aria-label="Điều hướng" class="flex gap-2">
+      <ButtonLink href="/" variant="ghost" size="sm">
+        Về trang chủ
+      </ButtonLink>
+      <ButtonLink href="/identify" variant="outline" size="sm">
+        Photo CCCD
+      </ButtonLink>
+    </nav>
+    <GeneratorApp client:only="react">
+      <p slot="fallback" role="status">
+        Đang tải công cụ tạo bản mẫu…
+      </p>
+    </GeneratorApp>
+  </main>
+</Layout>

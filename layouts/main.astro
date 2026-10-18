@@ -1,0 +1,54 @@
+---
+import "@/styles/global.css"
+import { appGlobal } from "@/utils/constant"
+
+const { title } = Astro.props
+const pageTitle = title?.trim()
+const documentTitle =
+  Astro.url.pathname === "/" || !pageTitle
+    ? appGlobal.name
+    : `${pageTitle} | ${appGlobal.name}`
+---
+
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>{documentTitle}</title>
+    <script is:inline>
+      ;(() => {
+        const themes = ["system", "light", "dark"]
+        const saved = document.cookie
+          .split(";")
+          .map((value) => value.trim())
+          .find((value) => value.startsWith("color-theme="))
+          ?.slice("color-theme=".length)
+        let theme = themes.includes(saved) ? saved : "system"
+        const media = window.matchMedia("(prefers-color-scheme: dark)")
+
+        function applyTheme() {
+          const dark = theme === "dark" || (theme === "system" && media.matches)
+          document.documentElement.classList.toggle("dark", dark)
+          document.documentElement.dataset.theme = theme
+          document.documentElement.style.colorScheme = dark ? "dark" : "light"
+          window.dispatchEvent(new Event("color-theme-updated"))
+        }
+
+        window.addEventListener("color-theme-change", (event) => {
+          if (!themes.includes(event.detail)) return
+          theme = event.detail
+          document.cookie = `color-theme=${theme}; Path=/; Max-Age=31536000; SameSite=Lax${location.protocol === "https:" ? "; Secure" : ""}`
+          applyTheme()
+        })
+        media.addEventListener("change", () => {
+          if (theme === "system") applyTheme()
+        })
+        applyTheme()
+      })()
+    </script>
+  </head>
+  <body>
+    <slot />
+  </body>
+</html>
