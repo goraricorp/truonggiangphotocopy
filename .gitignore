@@ -24,3 +24,6 @@ pnpm-debug.log*
 
 # local image regression fixtures
 tmp/
+
+# Vercel build output and local project settings
+.vercel/
