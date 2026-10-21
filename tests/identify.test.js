@@ -22,12 +22,13 @@ describe("Khổ thẻ và bố cục in", () => {
     expect(mmToPx(CARD.height)).toBe(638)
   })
   test.each([0, 12, 50])(
-    "hai mặt căn giữa, không tràn với khoảng cách %d mm",
+    "lề trên bằng khoảng cách hai mặt, không tràn với %d mm",
     (gap) => {
       const l = pageLayout(gap)
       expect(l.x * 2 + l.width).toBeCloseTo(210)
       expect(l.backTop - l.top - l.height).toBeCloseTo(gap)
-      expect(297 - l.backTop - l.height).toBeCloseTo(l.top)
+      expect(l.top).toBeCloseTo(gap)
+      expect(l.backTop + l.height).toBeLessThanOrEqual(297)
     }
   )
   test("chặn cấu hình không hợp lệ", () => {

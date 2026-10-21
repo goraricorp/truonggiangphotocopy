@@ -17,13 +17,14 @@ function getTheme() {
   return themes.includes(theme) ? theme : "system"
 }
 
-export default function ThemeToggle() {
+export default function ThemeToggle({ className }) {
   const theme = useSyncExternalStore(subscribe, getTheme, () => "system")
   const next = themes[(themes.indexOf(theme) + 1) % themes.length]
   const Icon = icons[theme]
 
   return (
     <Button
+      className={className}
       type="button"
       variant="outline"
       size="icon"

@@ -53,6 +53,18 @@ describe("vòng đời OCR cục bộ", () => {
       name: "AbortError",
     })
   })
+  test("chế độ văn bản giữ khối bố cục và dùng phân trang tự động", async () => {
+    setup()
+    const blocks = [{ paragraphs: [] }]
+    recognize.mockResolvedValueOnce({
+      data: { text: "Nội dung", confidence: 90, blocks },
+    })
+    const reader = createReader()
+    const result = await reader.recognize("page", false, "document")
+    expect(setParameters.mock.calls[0][0].tessedit_pageseg_mode).toBe("3")
+    expect(result.blocks).toBe(blocks)
+    reader.dispose()
+  })
   test("tải mô hình lỗi không treo hàng đợi, lần thử sau có thể tiếp tục", async () => {
     setup()
     fetch.mockResolvedValueOnce(new Response("", { status: 404 }))

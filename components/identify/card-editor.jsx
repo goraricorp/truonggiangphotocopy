@@ -1,25 +1,25 @@
-import { identityCropLimits } from "@/utils/constant"
-import { useEffect, useRef, useState } from "react"
-import {
-  Stage,
-  Layer,
-  Image as KonvaImage,
-  Circle,
-  Line,
-  Text,
-} from "react-konva"
-import { RotateCw, RotateCcw, RefreshCw, X } from "lucide-react"
+import { Button } from "@/components/ui/button"
 import {
   Dialog,
   DialogContent,
-  DialogTitle,
   DialogDescription,
+  DialogTitle,
 } from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Slider } from "@/components/ui/slider"
 import { defaults, fullCorners, validCorners } from "@/lib/identify/model"
+import { identityCropLimits } from "@/utils/constant"
+import { RefreshCw, RotateCcw, RotateCw, X } from "lucide-react"
+import { useEffect, useRef, useState } from "react"
+import {
+  Circle,
+  Image as KonvaImage,
+  Layer,
+  Line,
+  Stage,
+  Text,
+} from "react-konva"
 
 export default function CardEditor({ value, label, onClose, onApply, onAuto }) {
   const [image, setImage] = useState(null),
@@ -277,6 +277,10 @@ export default function CardEditor({ value, label, onClose, onApply, onAuto }) {
             </details>
           </div>
           <div className="space-y-4">
+            <p className="text-xs text-muted-foreground">
+              Ảnh được tự cân sáng và tương phản theo mẫu CCCD. Các thanh bên
+              dưới điều chỉnh thêm trên kết quả tự động.
+            </p>
             {[
               ["brightness", "Độ sáng", -25, 25, 1],
               ["contrast", "Tương phản", 0.75, 1.3, 0.01],

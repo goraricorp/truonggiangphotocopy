@@ -1,31 +1,13 @@
 ---
-import ThemeToggle from "@/components/custom/theme-toggle.jsx"
 import Counter from "@/components/custom/counter"
 import Layout from "@/layouts/main.astro"
-import ButtonLink from "@/components/custom/button-link"
 ---
 
 <Layout>
-  <div class="flex min-h-svh p-6">
-    <div class="flex max-w-md min-w-0 flex-col gap-4 text-sm leading-loose">
-      <div>
-        <h1 class="font-medium">Dự án đã sẵn sàng!</h1>
-        <p>Bạn có thể thêm thành phần và bắt đầu xây dựng giao diện.</p>
-        <p>Thành phần nút đã được cài đặt sẵn.</p>
-        <ButtonLink href="/identify" className="mt-2">
-          Photo CCCD
-        </ButtonLink>
-        <ButtonLink href="/generator" variant="outline" className="mt-2">
-          Đưa CCCD vào mẫu
-        </ButtonLink>
-        <ButtonLink href="/banner" variant="outline" className="mt-2">
-          Biểu ngữ
-        </ButtonLink>
-        <div class="mt-4">
-          <Counter client:load />
-          <ThemeToggle client:load />
-        </div>
-      </div>
-    </div>
-  </div>
+  <section class="space-y-4 text-sm leading-loose">
+    <h1 class="font-medium">Dự án đã sẵn sàng!</h1>
+    <p>Bạn có thể thêm thành phần và bắt đầu xây dựng giao diện.</p>
+    <p>Thành phần nút đã được cài đặt sẵn.</p>
+    <Counter client:load />
+  </section>
 </Layout>

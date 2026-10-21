@@ -13,7 +13,7 @@ Mở /identify hoặc /identity. Mã nguồn React/JavaScript; không sửa comp
 
 ## Kích thước
 
-Mọi mặt thẻ cố định **85,60 × 53,98 mm** theo yêu cầu. Không cung cấp tùy chọn phóng lớn. PDF dùng point; Word dùng EMU/twip. Ảnh thẻ raster là 1011 × 638px ở 300 DPI (làm tròn pixel); PNG/JPEG xuất có metadata mật độ in. A4 210 × 297 mm, mỗi CCCD một trang, mặc định khoảng cách hai mặt 12 mm, căn giữa cả cụm.
+Mọi mặt thẻ cố định **85,60 × 53,98 mm** theo yêu cầu. Không cung cấp tùy chọn phóng lớn. PDF dùng point; Word dùng EMU/twip. Ảnh thẻ raster là 1011 × 638px ở 300 DPI (làm tròn pixel); PNG/JPEG xuất có metadata mật độ in. A4 210 × 297 mm, mỗi CCCD một trang, mặc định lề trên 12 mm bằng đúng khoảng cách hai mặt 12 mm, căn giữa theo chiều ngang. Đổi khoảng cách cũng đổi lề trên tương ứng cho preview, PDF, Word và ảnh.
 
 ## Nhận diện và giới hạn
 
@@ -53,7 +53,7 @@ Khi góc suy ra vượt ảnh nguồn trong giới hạn 75% mỗi chiều và c
 
 ### Ảnh thiếu sáng hoặc sáng bạc
 
-Nếu đối chiếu ảnh gốc không thành công, tạo bản phân tích cân bằng sáng bằng phân vị độ chói 1,5%–98,5%, kéo tương phản và gamma có giới hạn. Dùng chung điểm đen/trắng và hệ số tăng sáng cho cả ba kênh để giữ sắc độ, không cân bằng từng kênh hoặc nhuộm xanh. Tìm đặc trưng, màu và vùng đề xuất lại trên bản phân tích; vẫn bắt buộc qua kiểm chứng mẫu hoặc nhiều đặc trưng bố cục. Ảnh xuất được cắt từ ảnh gốc với các điều chỉnh nhẹ hiện có, không xuất bản phân tích tăng tương phản. Ảnh phẳng quá tối/cháy trắng không được tạo thêm màu hay chi tiết; vùng đã mất dữ liệu vẫn không khôi phục được.
+Nếu đối chiếu ảnh gốc không thành công, tạo bản phân tích cân bằng sáng bằng phân vị độ chói 1,5%–98,5%, kéo tương phản và gamma có giới hạn. Dùng chung điểm đen/trắng và hệ số tăng sáng cho cả ba kênh để giữ sắc độ, không cân bằng từng kênh hoặc nhuộm xanh. Tìm đặc trưng, màu và vùng đề xuất lại trên bản phân tích; vẫn bắt buộc qua kiểm chứng mẫu hoặc nhiều đặc trưng bố cục. Ảnh xuất được cắt từ ảnh gốc, sau đó cân sáng theo mẫu; không xuất bản phân tích dùng để dò góc. Ảnh phẳng quá tối/cháy trắng không được tạo thêm màu hay chi tiết; vùng đã mất dữ liệu vẫn không khôi phục được.
 
 ## Tích hợp AI tìm góc
 
@@ -79,3 +79,11 @@ Nhánh `layout` kiểm chứng các vùng đường biên và DocAligner **trư�
 - Khi dò contour trả danh sách vùng đề xuất, giữ thêm tứ giác hợp lệ khi fit đường thẳng không đủ điểm. Chỉ chấp nhận sau kiểm chứng bên trong vùng, không chọn trang vở vì nó lớn nhất.
 
 `tests/card-layout.test.js` có các ca nền trắng, lưới ô và hình giả luôn chạy. Bốn ảnh người dùng trong `tmp/` được kiểm thử hồi quy khi có trên máy, bỏ qua khi không có; `tmp/` nằm trong `.gitignore`. Không đưa ảnh cá nhân vào mẫu hay tài nguyên phát hành. Kết quả kiểm tra trình duyệt cục bộ ở `/tmp/photocopy-real-results/`.
+
+## Cân sáng ảnh xuất
+
+Đo phân vị độ chói 10%/50%/90% trên nền xanh của mặt trước và mặt sau trong docs/new.png và docs/image.png; cache profile nhỏ trong worker. Dùng trung bình theo mặt để kết quả ổn định khi chỉnh góc hoặc nhánh nhận diện thay đổi. Đường cong độ chói đơn điệu giữ sắc màu với hệ số chung RGB có giới hạn, loại vùng bù trắng và các ô trắng/chân dung/vân tay khỏi phép đo. Không sao chép nội dung từ mẫu. Cân sáng chạy từ ảnh gốc trước điều chỉnh thủ công và làm nét, không tăng sáng chồng khi xử lý lại. Nếu không đủ màu nền thì giữ ảnh; tải mẫu lỗi có cảnh báo. Chi tiết đã mất do cháy sáng/tối không thể khôi phục.
+
+## Nạp công cụ ngay khi vào trang
+
+`IdentifyApp` tạo worker và gọi `warmup()` khi mount: khởi tạo OpenCV, ONNX DocAligner, đặc trưng ảnh mẫu và profile cân sáng, đồng thời nạp module trình chỉnh sửa. Warmup và xử lý ảnh dùng chung hàng đợi/worker; ảnh dán trong lúc chuẩn bị được giữ đến lượt xử lý. Rời trang sẽ hủy worker. Vite optimizeDeps khai báo trước OpenCV, ONNX, Konva và thư viện xuất tài liệu để tránh phát hiện dependency muộn rồi tải lại trang khi người dùng dán ảnh hoặc mở chỉnh sửa.

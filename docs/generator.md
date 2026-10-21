@@ -20,7 +20,7 @@ Mở `/generator` hoặc nút **Đưa CCCD vào mẫu** ở trang chủ.
 
 Dùng chung `makeDocument` với `/identify`: A4, mỗi mặt **85,60 × 53,98 mm**, ảnh **1011 × 638px / 300 DPI**, khoảng cách hai mặt 0–50 mm. Mặc định 12 mm. Chọn in kích thước thực / 100%.
 
-Ảnh và chữ OCR chỉ nằm trong bộ nhớ trang; không gửi lên API, không lưu vào localStorage/IndexedDB. URL ảnh được thu hồi khi thay/xóa/rời trang. Tesseract worker, WASM và mô hình tiếng Việt/Anh được xuất tĩnh từ dependency qua `/ocr/*`; không tải mã hay mô hình từ CDN. Lần đầu OCR cần tải các tài nguyên này; phiên worker được tái sử dụng cho các lượt đọc tiếp theo. Cache HTTP có thể giữ tài nguyên mô hình, không lưu ảnh người dùng.
+Mặc định OCR tại máy giữ ảnh và chữ trong bộ nhớ trang. Nút Đọc lại bằng Gemini gửi đúng ảnh mặt thẻ đã cắt qua máy chủ đến Google; kết quả AI dùng làm chữ để tạo mẫu và được đánh dấu cần kiểm tra, không gán điểm tin cậy giả. Lỗi Gemini không thay dữ liệu đã có. Ứng dụng không lưu ảnh/chữ vào localStorage/IndexedDB. URL ảnh được thu hồi khi thay/xóa/rời trang. Tesseract worker, WASM và mô hình tiếng Việt/Anh được xuất tĩnh từ dependency qua `/ocr/*`; không tải mã hay mô hình từ CDN. Lần đầu OCR cần tải các tài nguyên này; phiên worker được tái sử dụng cho các lượt đọc tiếp theo. Cache HTTP có thể giữ tài nguyên mô hình, không lưu ảnh người dùng.
 
 Bốn ảnh trong `tmp/template/` chỉ dùng để kiểm tra cục bộ, không import vào source/public hoặc đưa vào bản build. `tmp/` vẫn bị loại qua `.gitignore`.
 

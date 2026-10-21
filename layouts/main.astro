@@ -1,5 +1,9 @@
 ---
 import "@/styles/global.css"
+import Navbar from "@/components/custom/navbar"
+import Footer from "@/components/custom/footer"
+import NavigationProgress from "@/components/custom/navigation-progress"
+import { ClientRouter } from "astro:transitions"
 import { appGlobal } from "@/utils/constant"
 
 const { title } = Astro.props
@@ -10,14 +14,17 @@ const documentTitle =
     : `${pageTitle} | ${appGlobal.name}`
 ---
 
-<html lang="vi">
+<html lang="vi" transition:animate="none">
   <head>
     <meta charset="utf-8" />
+    <ClientRouter fallback="swap" />
     <meta name="viewport" content="width=device-width" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>{documentTitle}</title>
     <script is:inline>
       ;(() => {
+        if (window.__photocopyThemeInitialized) return
+        window.__photocopyThemeInitialized = true
         const themes = ["system", "light", "dark"]
         const saved = document.cookie
           .split(";")
@@ -27,12 +34,13 @@ const documentTitle =
         let theme = themes.includes(saved) ? saved : "system"
         const media = window.matchMedia("(prefers-color-scheme: dark)")
 
-        function applyTheme() {
+        function applyTheme(root = document.documentElement) {
           const dark = theme === "dark" || (theme === "system" && media.matches)
-          document.documentElement.classList.toggle("dark", dark)
-          document.documentElement.dataset.theme = theme
-          document.documentElement.style.colorScheme = dark ? "dark" : "light"
-          window.dispatchEvent(new Event("color-theme-updated"))
+          root.classList.toggle("dark", dark)
+          root.dataset.theme = theme
+          root.style.colorScheme = dark ? "dark" : "light"
+          if (root === document.documentElement)
+            window.dispatchEvent(new Event("color-theme-updated"))
         }
 
         window.addEventListener("color-theme-change", (event) => {
@@ -44,11 +52,28 @@ const documentTitle =
         media.addEventListener("change", () => {
           if (theme === "system") applyTheme()
         })
+        document.addEventListener("astro:before-swap", (event) => {
+          applyTheme(event.newDocument.documentElement)
+        })
+        document.addEventListener("astro:after-swap", () => applyTheme())
         applyTheme()
       })()
     </script>
   </head>
-  <body>
-    <slot />
+  <body class="flex min-h-svh flex-col">
+    <NavigationProgress client:load transition:persist="navigation-progress" />
+    <Navbar
+      pathname={Astro.url.pathname}
+      client:load
+      transition:persist="navbar"
+    />
+    <main class="flex flex-1 flex-col">
+      <div class="container mx-auto flex-1 p-6">
+        <div class="w-full overflow-hidden">
+          <slot />
+        </div>
+      </div>
+    </main>
+    <Footer />
   </body>
 </html>

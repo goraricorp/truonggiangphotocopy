@@ -1,12 +1,12 @@
 {
-  "name": "astro-app",
+  "name": "photocopy",
   "type": "module",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "private": true,
   "engines": {
     "node": ">=24"
   },
-  "packageManager": "bun@1.4.2",
+  "packageManager": "bun@1.4.3",
   "scripts": {
     "dev": "astro dev --host --port 5500",
     "build": "astro build",
@@ -18,42 +18,47 @@
     "typecheck": "astro check",
     "test:identify": "vitest run tests/identify.test.js tests/identify-detection.test.js tests/doc-aligner.test.js tests/card-layout.test.js",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "start": "node --env-file-if-exists=.env.local ./dist/server/entry.mjs"
   },
   "dependencies": {
+    "@astrojs/node": "^11.1.9",
     "@astrojs/react": "^7",
     "@base-ui/react": "^1.9.0",
+    "@bprogress/core": "^1.3.4",
+    "@bprogress/react": "^1.2.7",
     "@fontsource-variable/inter": "^5.3.0",
     "@shadcn/react": "^0.3.1",
     "@tailwindcss/vite": "^4",
     "@techstark/opencv-js": "^5.0.0-release.1",
     "@tesseract.js-data/eng": "^1.0.0",
     "@tesseract.js-data/vie": "^1.0.0",
-    "astro": "^7.3.8",
+    "astro": "^7.4.1",
     "class-variance-authority": "^0.7.1",
     "cmdk": "^1.1.1",
-    "cn": "^0.4.0",
+    "cn": "^0.5.0",
     "date-fns": "^4.4.0",
-    "docx": "^9.11.0",
+    "docx": "^9.13.0",
     "embla-carousel-react": "^8.6.0",
     "input-otp": "^1.5.0",
     "konva": "^10.9.0",
-    "lucide-react": "^1.57.0",
+    "lucide-react": "^1.60.0",
     "onnxruntime-web": "^1.30.0",
     "pdf-lib": "^1.17.1",
     "react": "^19.3.1",
     "react-day-picker": "^10.0.2",
     "react-dom": "^19.3.1",
-    "react-dropzone": "^20.1.3",
+    "react-dropzone": "^20.1.4",
     "react-konva": "^19.3.2",
-    "react-resizable-panels": "^4.14.5",
+    "react-resizable-panels": "^4.14.8",
     "recharts": "3.8.0",
-    "shadcn": "^4.21.5",
+    "shadcn": "^4.22.1",
     "shiki": "^4.5.0",
     "tailwindcss": "^4",
     "tesseract.js": "^7.0.0",
     "tw-animate-css": "^1.4.0",
-    "zod": "^4.6.7"
+    "zod": "^4.6.7",
+    "zustand": "^5.0.15"
   },
   "devDependencies": {
     "@astrojs/check": "^0.9",
@@ -66,6 +71,6 @@
     "prettier": "^3.9.10",
     "prettier-plugin-astro": "^1.1.1",
     "prettier-plugin-tailwindcss": "^0.8.1",
-    "vitest": "^5.0.4"
+    "vitest": "^5.0.5"
   }
 }

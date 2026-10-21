@@ -1,7 +1,7 @@
 import { inspectCardLayout, qrCue } from "../lib/identify/card-layout.js"
 import { detectCard } from "../lib/identify/detection.js"
 import { partialCardInfo } from "../lib/identify/partial-card.js"
-import { proposeDocAligner } from "../lib/identify/doc-aligner.js"
+import { proposeDocAligner, loadSession } from "../lib/identify/doc-aligner.js"
 import additionalReferenceUrl from "../docs/image.png?url"
 import referenceUrl from "../docs/new.png?url"
 import detailReferenceUrl from "../docs/card.png?url"
@@ -20,6 +20,11 @@ import {
   validCorners,
   mmToPx,
 } from "../lib/identify/model.js"
+import {
+  cardToneProfile,
+  averageToneProfiles,
+  balanceCardTone,
+} from "../lib/identify/card-tone.js"
 const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y)
 
 let runtime
@@ -188,6 +193,56 @@ async function loadReferences(cv) {
       }
     })()
   return references
+}
+// Cache only small exposure profiles; no ORB/AI pass is needed for this step.
+let toneReferences
+async function loadToneReferences() {
+  if (!toneReferences)
+    toneReferences = (async () => {
+      const result = { front: [], back: [] }
+      for (const [url, name, rectangles] of [
+        [
+          referenceUrl,
+          "cccd-primary",
+          [
+            [3, 3, 500, 295],
+            [3, 304, 500, 297],
+          ],
+        ],
+        [
+          additionalReferenceUrl,
+          "cccd-additional",
+          [
+            [0, 0, 780, 515],
+            [0, 525, 780, 515],
+          ],
+        ],
+      ]) {
+        const response = await fetch(url)
+        if (!response.ok) throw new Error("Không tải được mẫu cân sáng CCCD.")
+        const bitmap = await createImageBitmap(await response.blob())
+        try {
+          for (const [index, side] of ["front", "back"].entries()) {
+            const canvas = new OffscreenCanvas(320, 202),
+              context = canvas.getContext("2d")
+            context.drawImage(bitmap, ...rectangles[index], 0, 0, 320, 202)
+            result[side].push({
+              id: `${name}-${side}`,
+              profile: cardToneProfile(
+                context.getImageData(0, 0, 320, 202).data
+              ),
+            })
+          }
+        } finally {
+          bitmap.close()
+        }
+      }
+      return result
+    })().catch((error) => {
+      toneReferences = null
+      throw error
+    })
+  return toneReferences
 }
 async function process(
   file,
@@ -380,15 +435,22 @@ async function process(
       )
     if (detected && Math.abs(detected.ratio - CARD.width / CARD.height) > 0.3)
       warnings.push("Phối cảnh mạnh: kiểm tra lại bốn góc trước khi xuất.")
-    if (!supplied && !adjustments) {
-      const average = cv.mean(gray, validMask)[0]
-      if (average < 95) settings.brightness = 10
-      else if (average > 195) settings.brightness = -8
-      const range = cv.minMaxLoc(gray, validMask)
-      if (range.maxVal - range.minVal < 120) settings.contrast = 1.08
+    const balanced = mat()
+    rotated.copyTo(balanced)
+    let toneMatched = false
+    try {
+      const samples = (await loadToneReferences())[side]
+      const target = averageToneProfiles(
+        samples.map((sample) => sample.profile)
+      )
+      toneMatched = balanceCardTone(balanced.data, target, paddingMask?.data)
+    } catch {
+      warnings.push(
+        "Chưa tải được mẫu cân sáng; giữ ảnh gốc và các điều chỉnh đã chọn."
+      )
     }
     const adjusted = mat()
-    rotated.convertTo(adjusted, -1, settings.contrast, settings.brightness)
+    balanced.convertTo(adjusted, -1, settings.contrast, settings.brightness)
     const smooth = mat()
     cv.GaussianBlur(adjusted, smooth, new cv.Size(0, 0), 1)
     const sharp = mat()
@@ -431,6 +493,7 @@ async function process(
           }
         : undefined,
       partial,
+      toneMatched,
       cornerConfidence: detected?.cornerConfidence,
       blob,
       points,
@@ -446,6 +509,26 @@ async function process(
 }
 self.onmessage = async ({ data }) => {
   try {
+    if (data.type === "warmup") {
+      const cv = await loadCV()
+      const results = await Promise.allSettled([
+        loadSession(),
+        loadReferences(cv),
+        loadToneReferences(),
+      ])
+      self.postMessage({
+        id: data.id,
+        result: {
+          ready: true,
+          warnings: results.some((result) => result.status === "rejected")
+            ? [
+                "Một số tài nguyên chưa tải được; công cụ sẽ dùng các bước xử lý còn khả dụng.",
+              ]
+            : [],
+        },
+      })
+      return
+    }
     self.postMessage({
       id: data.id,
       result: await process(

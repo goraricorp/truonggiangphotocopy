@@ -54,3 +54,14 @@ Các vai trò dưới đây tương ứng với `constant.ts`, `interface.ts`, `
 - Các trang con phải có title theo định dạng `Tên trang | Tên ứng dụng`, trong đó tên ứng dụng luôn lấy từ `appGlobal.name`. Ví dụ: `Biểu ngữ | Photocopy Trường Giang`.
 - Trang con chỉ truyền tên trang bằng tiếng Việt qua prop `title` của layout chung; layout chịu trách nhiệm ghép tên ứng dụng. Không hard-code tên ứng dụng hoặc tự ghép hậu tố trong từng trang.
 - Mọi trang mới phải sử dụng layout chung để bảo đảm định dạng title nhất quán.
+
+## Biến môi trường bắt buộc qua environment.js
+
+- Bắt buộc dùng `utils/environment.js` làm đầu mối đọc, chuẩn hóa và kiểm tra biến môi trường phía server. Các module ứng dụng khác import module này, không tự đọc `.env.local`, `process.env` hoặc `import.meta.env`. Cấu hình framework và declaration/schema môi trường là ngoại lệ cần thiết.
+- Mỗi biến ứng dụng mới phải khai báo tên và giá trị mặc định không bí mật trong `.env.example`; không ghi key thật vào file ví dụ. `.env.local` không được commit.
+- Không import `utils/environment.js` từ React component, worker hoặc mã trình duyệt. Không đưa API key vào biến `PUBLIC_*`, HTML, log, thông báo lỗi hay response API.
+
+## Quản lý dependency và file sinh tự động
+
+- Không sửa tay các file lock (`bun.lock`, `bun.lockb`, `package-lock.json`, `yarn.lock`, `pnpm-lock.yaml`) hoặc bất kỳ file nào trong `node_modules/`.
+- Khi cần cài package, chạy `bun add package-name`; dependency phát triển dùng `bun add -d package-name`. Chỉ để Bun tự cập nhật lockfile và `node_modules`, không vá dependency trực tiếp.

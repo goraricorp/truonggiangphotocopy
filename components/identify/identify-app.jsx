@@ -1,52 +1,33 @@
-import { appGlobal } from "@/utils/constant"
-import { lazy, Suspense, useEffect, useRef, useState } from "react"
-import {
-  Plus,
-  ScanLine,
-  Download,
-  Trash2,
-  ArrowUp,
-  ArrowDown,
-  ShieldCheck,
-  X,
-  RefreshCw,
-} from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
   Dialog,
   DialogContent,
-  DialogTitle,
   DialogDescription,
+  DialogTitle,
 } from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select"
+import { A4, CARD, pageLayout } from "@/lib/identify/model"
+import { appGlobal } from "@/utils/constant"
 import {
-  CARD,
-  A4,
-  defaults,
-  validateFile,
-  imageDimensionsSchema,
-  pageLayout,
-  readyCards,
-} from "@/lib/identify/model"
-import { createProcessor } from "@/lib/identify/processing"
-import { makeDocument, downloadBlob, fileName } from "@/lib/identify/export"
+  ArrowDown,
+  ArrowUp,
+  Download,
+  Plus,
+  RefreshCw,
+  ScanLine,
+  ShieldCheck,
+  Trash2,
+  X,
+} from "lucide-react"
+import { lazy, Suspense } from "react"
 import ImageDropzone from "./image-dropzone"
-
-const CardEditor = lazy(() => import("./card-editor"))
-const sides = ["front", "back"]
-const newCard = () => ({
-  id: crypto.randomUUID(),
-  included: true,
-  front: null,
-  back: null,
-})
-const release = (side) => {
-  if (side?.sourceUrl) URL.revokeObjectURL(side.sourceUrl)
-  if (side?.outputUrl) URL.revokeObjectURL(side.outputUrl)
-}
+import { useIdentify } from "@/hooks/use-identify"
+import { newCard, cardSides as sides } from "@/stores/identify-store"
+const loadEditor = () => import("./card-editor")
+const CardEditor = lazy(loadEditor)
 function Preview({ cards, gap }) {
   const layout = pageLayout(gap)
   return (
@@ -92,256 +73,46 @@ function Preview({ cards, gap }) {
     </div>
   )
 }
+
 export default function IdentifyApp() {
-  const [cards, setCards] = useState(() => [newCard()]),
-    [selected, setSelected] = useState(null),
-    [notice, setNotice] = useState(""),
-    [editor, setEditor] = useState(null),
-    [replacement, setReplacement] = useState(null),
-    [pasteFiles, setPasteFiles] = useState([]),
-    [pasteTarget, setPasteTarget] = useState(""),
-    [format, setFormat] = useState("pdf"),
-    [dpi, setDpi] = useState(300),
-    [gap, setGap] = useState(12),
-    [quality, setQuality] = useState(0.95),
-    [exporting, setExporting] = useState(false),
-    [preview, setPreview] = useState(false)
-  const cardsRef = useRef(cards),
-    processor = useRef(null),
-    controllers = useRef(new Map()),
-    mounted = useRef(true),
-    pasteAction = useRef(null),
-    selectedRef = useRef(null),
-    confirmResolve = useRef(null)
-  const replaceCards = (fn) => {
-    const next = fn(cardsRef.current)
-    cardsRef.current = next
-    if (mounted.current) setCards(next)
-  }
-  const patch = (id, side, token, fn) =>
-    replaceCards((list) =>
-      list.map((c) =>
-        c.id === id && c[side]?.token === token
-          ? { ...c, [side]: fn(c[side]) }
-          : c
-      )
-    )
-  useEffect(() => {
-    mounted.current = true
-    const tasks = controllers.current
-    const handlePaste = (event) => {
-      const target = event.target
-      if (
-        target instanceof Element &&
-        target.closest("input,textarea,[contenteditable=true]")
-      )
-        return
-      const files = Array.from(event.clipboardData?.items ?? [])
-        .filter((item) => item.kind === "file")
-        .map((item) => item.getAsFile())
-        .filter(Boolean)
-      if (!files.length) return
-      event.preventDefault()
-      pasteAction.current?.(files)
-    }
-    document.addEventListener("paste", handlePaste)
-    return () => {
-      mounted.current = false
-      document.removeEventListener("paste", handlePaste)
-      tasks.forEach((c) => c.abort())
-      processor.current?.dispose()
-      cardsRef.current.forEach((c) => sides.forEach((side) => release(c[side])))
-      confirmResolve.current?.(false)
-    }
-  }, [])
-  useEffect(() => {
-    pasteAction.current = (files) => {
-      const target = selectedRef.current
-      if (target && cardsRef.current.some((c) => c.id === target.id)) {
-        void upload(target.id, target.side, files[0])
-        if (files.length > 1) setPasteFiles(files.slice(1))
-      } else setPasteFiles(files)
-    }
-  })
-  function select(id, side) {
-    selectedRef.current = { id, side }
-    setSelected({ id, side })
-  }
-  function confirmReplace(label) {
-    return new Promise((resolve) => {
-      confirmResolve.current?.(false)
-      confirmResolve.current = resolve
-      setReplacement(label)
-    })
-  }
-  function answerReplace(value) {
-    confirmResolve.current?.(value)
-    confirmResolve.current = null
-    setReplacement(null)
-  }
-  async function run(id, side, options = {}) {
-    const value = cardsRef.current.find((c) => c.id === id)?.[side]
-    if (!value) return
-    const key = `${id}:${side}`
-    controllers.current.get(key)?.abort()
-    const controller = new AbortController()
-    controllers.current.set(key, controller)
-    patch(id, side, value.token, (old) => ({
-      ...old,
-      status: "processing",
-      error: "",
-    }))
-    try {
-      processor.current ??= createProcessor()
-      const result = await processor.current.process(
-        value.file,
-        { ...options, side },
-        controller.signal
-      )
-      if (controller.signal.aborted || !mounted.current) return
-      patch(id, side, value.token, (old) => {
-        if (old.outputUrl) URL.revokeObjectURL(old.outputUrl)
-        return {
-          ...old,
-          result: result.blob ?? null,
-          outputUrl: result.blob ? URL.createObjectURL(result.blob) : null,
-          status: result.detected ? "ready" : "review",
-          points: result.points,
-          settings: result.settings ?? defaults,
-          warnings: result.warnings,
-          width: result.width,
-          height: result.height,
-          error: "",
-        }
-      })
-      if (!result.detected && options.points)
-        throw new Error("Không thể áp dụng bốn góc đã chọn.")
-    } catch (error) {
-      if (controller.signal.aborted) {
-        patch(id, side, value.token, (old) => ({
-          ...old,
-          status: old.result ? "ready" : "review",
-          error: "Đã hủy xử lý; ảnh gốc được giữ lại.",
-        }))
-        return
-      }
-      patch(id, side, value.token, (old) => ({
-        ...old,
-        status: "review",
-        error: error.message,
-      }))
-      throw error
-    } finally {
-      if (controllers.current.get(key) === controller)
-        controllers.current.delete(key)
-    }
-  }
-  async function upload(id, side, file) {
-    try {
-      validateFile(file)
-      const image = await createImageBitmap(file, {
-        imageOrientation: "from-image",
-      }).catch(() => {
-        throw new Error(
-          "Không giải mã được ảnh. Hãy chọn ảnh JPEG, PNG hoặc WebP khác."
-        )
-      })
-      const valid = imageDimensionsSchema.safeParse({
-        width: image.width,
-        height: image.height,
-      }).success
-      image.close()
-      if (!valid)
-        throw new Error(
-          "Ảnh quá nhỏ hoặc vượt 60 triệu điểm ảnh. Hãy chọn ảnh khác."
-        )
-      const old = cardsRef.current.find((c) => c.id === id)?.[side]
-      if (
-        old &&
-        !(await confirmReplace(
-          `Thay ảnh ${side === "front" ? "mặt trước" : "mặt sau"}?`
-        ))
-      )
-        return
-      if (!cardsRef.current.some((c) => c.id === id)) return
-      controllers.current.get(`${id}:${side}`)?.abort()
-      release(old)
-      const value = {
-        file,
-        sourceUrl: URL.createObjectURL(file),
-        outputUrl: null,
-        result: null,
-        token: crypto.randomUUID(),
-        status: "queued",
-        warnings: [],
-        settings: { ...defaults },
-      }
-      replaceCards((list) =>
-        list.map((c) => (c.id === id ? { ...c, [side]: value } : c))
-      )
-      select(id, side)
-      await run(id, side)
-    } catch (error) {
-      if (mounted.current)
-        setNotice(
-          error.message ||
-            "Không giải mã được ảnh. Hãy thử JPEG, PNG hoặc WebP khác."
-        )
-    }
-  }
-  function removeSide(id, side) {
-    controllers.current.get(`${id}:${side}`)?.abort()
-    const value = cardsRef.current.find((c) => c.id === id)?.[side]
-    release(value)
-    replaceCards((list) =>
-      list.map((c) => (c.id === id ? { ...c, [side]: null } : c))
-    )
-  }
-  function removeCard(id) {
-    sides.forEach((side) => {
-      controllers.current.get(`${id}:${side}`)?.abort()
-      release(cardsRef.current.find((c) => c.id === id)?.[side])
-    })
-    replaceCards((list) => list.filter((c) => c.id !== id))
-    if (selectedRef.current?.id === id) {
-      selectedRef.current = null
-      setSelected(null)
-    }
-  }
-  function reorder(index, delta) {
-    replaceCards((list) => {
-      const copy = [...list]
-      ;[copy[index], copy[index + delta]] = [copy[index + delta], copy[index]]
-      return copy
-    })
-  }
-  function rerunCard(card) {
-    for (const side of sides)
-      if (card[side]) void run(card.id, side).catch((e) => setNotice(e.message))
-  }
-  async function exportAll() {
-    setNotice("")
-    try {
-      readyCards(cardsRef.current)
-      setExporting(true)
-      const blob = await makeDocument(cardsRef.current, {
-        format,
-        dpi,
-        gap,
-        quality,
-      })
-      downloadBlob(blob, fileName(format))
-    } catch (e) {
-      setNotice(e?.issues ? "Tùy chọn xuất không hợp lệ." : e.message)
-    } finally {
-      setExporting(false)
-    }
-  }
-  const busy = cards.some((c) =>
-      sides.some((side) => c[side]?.status === "processing")
-    ),
-    editorCard = editor && cards.find((c) => c.id === editor.id),
-    editorValue = editorCard?.[editor?.side]
+  const {
+    busy,
+    editorValue,
+    controllers,
+    removeCard,
+    removeSide,
+    upload,
+    run,
+    rerunCard,
+    answerReplace,
+    exportAll,
+    cards,
+    selected,
+    notice,
+    preparing,
+    editor,
+    replacement,
+    pasteFiles,
+    pasteTarget,
+    format,
+    dpi,
+    gap,
+    quality,
+    exporting,
+    preview,
+    setNotice,
+    setEditor,
+    setPasteFiles,
+    setPasteTarget,
+    setFormat,
+    setDpi,
+    setGap,
+    setQuality,
+    setPreview,
+    replaceCards,
+    select,
+    reorder,
+  } = useIdentify()
   return (
     <div className="space-y-7">
       <section className="rounded-3xl border bg-card p-5 sm:p-7">
@@ -385,6 +156,15 @@ export default function IdentifyApp() {
             <X />
           </Button>
         </div>
+      )}
+      {preparing && (
+        <p
+          role="status"
+          className="flex items-center gap-2 text-sm text-muted-foreground"
+        >
+          <RefreshCw className="size-4 animate-spin" />
+          Đang chuẩn bị bộ xử lý ảnh. Bạn có thể chọn hoặc dán ảnh ngay.
+        </p>
       )}
       <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
         <div className="space-y-5">
@@ -439,7 +219,7 @@ export default function IdentifyApp() {
                 <div className="flex gap-1">
                   <Button
                     variant="ghost"
-                    size="icon-sm"
+                    size="icon"
                     aria-label={`Đưa CCCD ${index + 1} lên`}
                     disabled={index === 0 || busy}
                     onClick={() => reorder(index, -1)}
@@ -448,7 +228,7 @@ export default function IdentifyApp() {
                   </Button>
                   <Button
                     variant="ghost"
-                    size="icon-sm"
+                    size="icon"
                     aria-label={`Đưa CCCD ${index + 1} xuống`}
                     disabled={index === cards.length - 1 || busy}
                     onClick={() => reorder(index, 1)}
@@ -456,8 +236,8 @@ export default function IdentifyApp() {
                     <ArrowDown />
                   </Button>
                   <Button
-                    variant="ghost"
-                    size="icon-sm"
+                    variant="destructive"
+                    size="icon"
                     aria-label={`Xóa CCCD ${index + 1}`}
                     onClick={() => removeCard(card.id)}
                   >
@@ -535,7 +315,9 @@ export default function IdentifyApp() {
               </NativeSelect>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="export-gap">Khoảng cách hai mặt (mm)</Label>
+              <Label htmlFor="export-gap">
+                Lề trên và khoảng cách hai mặt (mm)
+              </Label>
               <Input
                 id="export-gap"
                 type="number"
